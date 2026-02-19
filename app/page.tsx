@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const GUARDS = ["רועי", "רון", "שלו", "עידן", "טום", "רוי", ""];
 const DAYS = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
@@ -13,26 +13,40 @@ const SHIFTS = [
   { time: "01:00-05:00", count: 2 },
 ];
 
-// שיבוץ התחלתי שעונה על כל האילוצים שלך (זוגות בלילה, חלוקה שווה, ושלו לא שומר בשישי בבוקר)
-const initialSchedule = [
-  [["עידן"], ["רוי"], ["עידן"], ["רוי"], ["רועי", "רון"], ["שלו", "טום"]], // ראשון
-  [["שלו"], ["טום"], ["שלו"], ["טום"], ["עידן", "רוי"], ["רועי", "רון"]], // שני
-  [["רועי"], ["רון"], ["רועי"], ["רון"], ["שלו", "טום"], ["עידן", "רוי"]], // שלישי
-  [["עידן"], ["רוי"], ["עידן"], ["רוי"], ["רועי", "רון"], ["שלו", "טום"]], // רביעי
-  [["שלו"], ["טום"], ["שלו"], ["טום"], ["עידן", "רוי"], ["רועי", "רון"]], // חמישי
-  [["רועי"], ["רון"], ["רועי"], ["רון"], ["שלו", "טום"], ["עידן", "רוי"]], // שישי (שלו פנוי בבוקר)
-  [["עידן"], ["רוי"], ["עידן"], ["רוי"], ["רועי", "רון"], ["שלו", "טום"]]  // שבת
+const initialSchedule: string[][][] = [
+  [["עידן"], ["רוי"], ["עידן"], ["רוי"], ["רועי", "רון"], ["שלו", "טום"]],
+  [["שלו"], ["טום"], ["שלו"], ["טום"], ["עידן", "רוי"], ["רועי", "רון"]],
+  [["רועי"], ["רון"], ["רועי"], ["רון"], ["שלו", "טום"], ["עידן", "רוי"]],
+  [["עידן"], ["רוי"], ["עידן"], ["רוי"], ["רועי", "רון"], ["שלו", "טום"]],
+  [["שלו"], ["טום"], ["שלו"], ["טום"], ["עידן", "רוי"], ["רועי", "רון"]],
+  [["רועי"], ["רון"], ["רועי"], ["רון"], ["שלו", "טום"], ["עידן", "רוי"]],
+  [["עידן"], ["רוי"], ["עידן"], ["רוי"], ["רועי", "רון"], ["שלו", "טום"]]
 ];
 
 export default function ScheduleBoard() {
-  const [schedule, setSchedule] = useState(initialSchedule);
+  const [schedule, setSchedule] = useState<string[][][]>(initialSchedule);
+  const [isLoaded, setIsLoaded] = useState(false);
 
-  // פונקציה לעדכון שם השומר במערך
-  const updateGuard = (dayIndex, shiftIndex, slotIndex, newName) => {
+  // טעינת הנתונים שנשמרו בדפדפן (Local Storage) בעת עליית העמוד
+  useEffect(() => {
+    const savedSchedule = localStorage.getItem("guardScheduleData");
+    if (savedSchedule) {
+      setSchedule(JSON.parse(savedSchedule));
+    }
+    setIsLoaded(true);
+  }, []);
+
+  // פונקציה לעדכון השומר ושמירה אוטומטית (כאן הוספנו את הגדרות ה-TypeScript: number, string)
+  const updateGuard = (dayIndex: number, shiftIndex: number, slotIndex: number, newName: string) => {
     const newSchedule = [...schedule];
     newSchedule[dayIndex][shiftIndex][slotIndex] = newName;
     setSchedule(newSchedule);
+    // שמירת המידע לדפדפן כדי שלא יימחק ברענון
+    localStorage.setItem("guardScheduleData", JSON.stringify(newSchedule));
   };
+
+  // מונע בעיות תצוגה בין השרת ללקוח בטעינה ראשונית
+  if (!isLoaded) return null;
 
   return (
     <div className="p-4 bg-gray-50 min-h-screen text-right" dir="rtl">
@@ -60,7 +74,6 @@ export default function ScheduleBoard() {
                 
                 {DAYS.map((_, dayIndex) => (
                   <td key={dayIndex} className="py-2 px-2 border border-gray-300 align-top">
-                    {/* יצירת רשימה נפתחת כמספר השומרים הדרושים באותה משמרת */}
                     {Array.from({ length: shift.count }).map((_, slotIndex) => (
                       <select
                         key={slotIndex}
