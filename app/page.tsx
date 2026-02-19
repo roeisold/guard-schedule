@@ -86,7 +86,7 @@ export default function ScheduleBoard() {
     <div className="p-4 bg-gray-950 min-h-screen text-right text-gray-100 font-sans" dir="rtl">
       <div className="max-w-7xl mx-auto">
         <h1 className="text-4xl font-extrabold text-center mb-8 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">
-          סידור שמירות - שוויוני
+          לוז שמירות
         </h1>
         
         <div className="overflow-x-auto shadow-2xl rounded-xl border border-gray-800 mb-12">
