@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 
-const GUARDS = ["רועי", "רון", "שלו", "עידן", "טום", "רוי"];
+const UNMANNED = "לא מאויישת";
+const GUARDS = ["רועי", "רון", "שלו", "עידן", "טום", "רוי", UNMANNED];
 const DAYS = ["חמישי", "שישי", "שבת", "ראשון", "שני", "שלישי", "רביעי", "חמישי (סיום)"];
 const SHIFTS = [
   { time: "05:00-09:00", count: 1 },
@@ -13,7 +14,7 @@ const SHIFTS = [
   { time: "01:00-05:00", count: 2 },
 ];
 
-// מפת צבעים לכל שומר - מותאם למצב כהה (רקע, טקסט ומסגרת)
+// מפת צבעים לכל שומר - כולל אופציה ייעודית למשמרת ריקה
 const GUARD_COLORS: Record<string, string> = {
   "רועי": "bg-red-900/60 text-red-100 border-red-700",
   "רון": "bg-blue-900/60 text-blue-100 border-blue-700",
@@ -21,18 +22,27 @@ const GUARD_COLORS: Record<string, string> = {
   "עידן": "bg-orange-900/60 text-orange-100 border-orange-700",
   "טום": "bg-purple-900/60 text-purple-100 border-purple-700",
   "רוי": "bg-pink-900/60 text-pink-100 border-pink-700",
-  "": "bg-gray-800 text-gray-400 border-gray-600"
+  "לא מאויישת": "bg-gray-800 text-gray-400 border-gray-600 border-dashed"
 };
 
+// שיבוץ שעונה על כל האילוצים: התחלה ב-17:00 עם שלו, אופציה להארכה בחמישי האחרון, 8 שעות מנוחה!
 const initialSchedule: string[][][] = [
-  [["שלו"], ["טום"], ["רועי"], ["רון"], ["שלו", "טום"], ["עידן", "רוי"]],
-  [["רועי"], ["רון"], ["עידן"], ["רוי"], ["רועי", "רון"], ["שלו", "טום"]],
-  [["עידן"], ["רוי"], ["שלו"], ["טום"], ["עידן", "רוי"], ["רועי", "רון"]],
-  [["שלו"], ["טום"], ["רועי"], ["רון"], ["שלו", "טום"], ["עידן", "רוי"]],
-  [["רועי"], ["רון"], ["עידן"], ["רוי"], ["רועי", "רון"], ["שלו", "טום"]],
-  [["עידן"], ["רוי"], ["שלו"], ["טום"], ["עידן", "רוי"], ["רועי", "רון"]],
-  [["שלו"], ["טום"], ["רועי"], ["רון"], ["שלו", "טום"], ["עידן", "רוי"]],
-  [["רועי"], ["רון"], [], [], [], []]
+  // חמישי (יום 1) - בוקר ריק, התחלה ב-17:00 עם שלו
+  [[UNMANNED], [UNMANNED], [UNMANNED], ["שלו"], ["רועי", "רון"], ["עידן", "רוי"]],
+  // שישי (יום 2) 
+  [["טום"], ["רועי"], ["רון"], ["עידן"], ["שלו", "טום"], ["רועי", "רון"]],
+  // שבת (יום 3)
+  [["רוי"], ["עידן"], ["רועי"], ["רון"], ["עידן", "רוי"], ["שלו", "טום"]],
+  // ראשון (יום 4)
+  [["רועי"], ["רון"], ["שלו"], ["טום"], ["רועי", "רון"], ["עידן", "רוי"]],
+  // שני (יום 5)
+  [["שלו"], ["טום"], ["עידן"], ["רוי"], ["שלו", "טום"], ["רועי", "רון"]],
+  // שלישי (יום 6)
+  [["עידן"], ["רוי"], ["רועי"], ["רון"], ["עידן", "רוי"], ["שלו", "טום"]],
+  // רביעי (יום 7)
+  [["רועי"], ["רוי"], ["שלו"], ["טום"], ["רועי", "רון"], ["עידן", "רוי"]],
+  // חמישי (יום 8 - סיום באזור 13:00) - השאר מוגדר כלא מאויש למקרה של איחור
+  [["שלו"], ["טום"], [UNMANNED], [UNMANNED], [UNMANNED, UNMANNED], [UNMANNED, UNMANNED]]
 ];
 
 export default function ScheduleBoard() {
@@ -40,7 +50,8 @@ export default function ScheduleBoard() {
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    const savedSchedule = localStorage.getItem("guardScheduleDataColors");
+    // מפתח חדש V3 כדי שייטען השיבוץ החדש
+    const savedSchedule = localStorage.getItem("guardScheduleDataDarkV3");
     if (savedSchedule) {
       setSchedule(JSON.parse(savedSchedule));
     }
@@ -51,17 +62,18 @@ export default function ScheduleBoard() {
     const newSchedule = JSON.parse(JSON.stringify(schedule));
     newSchedule[dayIndex][shiftIndex][slotIndex] = newName;
     setSchedule(newSchedule);
-    localStorage.setItem("guardScheduleDataColors", JSON.stringify(newSchedule));
+    localStorage.setItem("guardScheduleDataDarkV3", JSON.stringify(newSchedule));
   };
 
   const getShiftCounts = () => {
     const counts: Record<string, number> = {};
-    GUARDS.forEach(g => counts[g] = 0);
+    // מאפסים לכולם חוץ מלמשמרת "לא מאויישת"
+    GUARDS.filter(g => g !== UNMANNED).forEach(g => counts[g] = 0);
     
     schedule.forEach(day => {
       day.forEach(shift => {
         shift.forEach(guard => {
-          if (guard && counts[guard] !== undefined) {
+          if (guard && guard !== UNMANNED && counts[guard] !== undefined) {
             counts[guard]++;
           }
         });
@@ -101,29 +113,24 @@ export default function ScheduleBoard() {
                   
                   {DAYS.map((_, dayIndex) => (
                     <td key={dayIndex} className="py-3 px-2 border-l border-gray-800 align-top transition-colors">
-                      {schedule[dayIndex][shiftIndex].length === 0 ? (
-                         <div className="text-gray-700 font-medium py-2 flex items-center justify-center h-full">-</div>
-                      ) : (
-                        schedule[dayIndex][shiftIndex].map((guardName, slotIndex) => {
-                          const colorClass = guardName ? GUARD_COLORS[guardName] : GUARD_COLORS[""];
-                          
-                          return (
-                            <select
-                              key={slotIndex}
-                              className={`w-full mb-1.5 p-2 border rounded-md cursor-pointer outline-none focus:ring-2 focus:ring-white/50 transition-all font-medium text-center appearance-none ${colorClass}`}
-                              value={guardName || ""}
-                              onChange={(e) => updateGuard(dayIndex, shiftIndex, slotIndex, e.target.value)}
-                            >
-                              <option value="" disabled className="bg-gray-900 text-gray-500">בחר שומר...</option>
-                              {GUARDS.map(guard => (
-                                <option key={guard} value={guard} className="bg-gray-800 text-white text-base">
-                                  {guard}
-                                </option>
-                              ))}
-                            </select>
-                          );
-                        })
-                      )}
+                      {schedule[dayIndex][shiftIndex].map((guardName, slotIndex) => {
+                        const colorClass = guardName ? GUARD_COLORS[guardName] : GUARD_COLORS[UNMANNED];
+                        
+                        return (
+                          <select
+                            key={slotIndex}
+                            className={`w-full mb-1.5 p-2 border rounded-md cursor-pointer outline-none focus:ring-2 focus:ring-white/50 transition-all font-medium text-center appearance-none ${colorClass}`}
+                            value={guardName || UNMANNED}
+                            onChange={(e) => updateGuard(dayIndex, shiftIndex, slotIndex, e.target.value)}
+                          >
+                            {GUARDS.map(guard => (
+                              <option key={guard} value={guard} className="bg-gray-800 text-white text-base">
+                                {guard}
+                              </option>
+                            ))}
+                          </select>
+                        );
+                      })}
                     </td>
                   ))}
                 </tr>
