@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState } from 'react';
 
 const GUARDS = ["רועי", "רון", "שלו", "עידן", "טום", "רוי", ""];
