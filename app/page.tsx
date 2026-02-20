@@ -1,9 +1,27 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+// ייבוא הכלים של פיירבייס
+import { initializeApp } from "firebase/app";
+import { getFirestore, doc, setDoc, onSnapshot } from "firebase/firestore";
 
+// --- החלף את כל הבלוק הזה עם ה-firebaseConfig שקיבלת מפיירבייס! ---
+const firebaseConfig = {
+  apiKey: "AIzaSyCUzQmyZv8Y_8JRjK5iV80T68g5fzJBTOk",
+  authDomain: "guard-schedule.firebaseapp.com",
+  projectId: "guard-schedule",
+  storageBucket: "guard-schedule.firebasestorage.app",
+  messagingSenderId: "538986053667",
+  appId: "1:538986053667:web:7279603a60afba6ac1b196"
+};
+
+// הפעלת פיירבייס
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// הגדרות המערכת שלנו
 const UNMANNED = "לא מאויישת";
-const GUARDS = ["רועי", "רון", "שלו", "עידן", "טום", "רוי", UNMANNED];
+const GUARDS = ["סולד", "רון", "שלו", "עידן", "טום", "רוי", UNMANNED];
 const DAYS = ["חמישי", "שישי", "שבת", "ראשון", "שני", "שלישי", "רביעי", "חמישי (סיום)"];
 const SHIFTS = [
   { time: "05:00-09:00", count: 1 },
@@ -15,7 +33,7 @@ const SHIFTS = [
 ];
 
 const GUARD_COLORS: Record<string, string> = {
-  "רועי": "bg-red-900/60 text-red-100 border-red-700",
+  "סולד": "bg-red-900/60 text-red-100 border-red-700",
   "רון": "bg-blue-900/60 text-blue-100 border-blue-700",
   "שלו": "bg-emerald-900/60 text-emerald-100 border-emerald-700",
   "עידן": "bg-orange-900/60 text-orange-100 border-orange-700",
@@ -24,24 +42,15 @@ const GUARD_COLORS: Record<string, string> = {
   "לא מאויישת": "bg-gray-800 text-gray-400 border-gray-600 border-dashed"
 };
 
-// שיבוץ שוויוני ומאוזן - שלו פנוי בשישי מ-17:00 ועד 01:00! שאר האילוצים נשמרו.
 const initialSchedule: string[][][] = [
-  // חמישי (יום 1) 
-  [[UNMANNED], [UNMANNED], [UNMANNED], ["שלו"], ["רועי", "רון"], ["טום", "רוי"]],
-  // שישי (יום 2) - שלו פנוי בין 17:00 ל-01:00
-  [["עידן"], ["רון"], ["שלו"], ["רוי"], ["רועי", "רון"], ["שלו", "עידן"]],
-  // שבת (יום 3)
-  [["טום"], ["רוי"], ["רון"], ["רועי"], ["טום", "רוי"], ["שלו", "עידן"]],
-  // ראשון (יום 4)
-  [["רועי"], ["רון"], ["רוי"], ["עידן"], ["רועי", "רון"], ["טום", "רוי"]],
-  // שני (יום 5)
-  [["שלו"], ["עידן"], ["רון"], ["טום"], ["שלו", "עידן"], ["רועי", "רון"]],
-  // שלישי (יום 6)
-  [["טום"], ["שלו"], ["עידן"], ["רועי"], ["טום", "רוי"], ["שלו", "עידן"]],
-  // רביעי (יום 7)
-  [["רועי"], ["טום"], ["רוי"], ["עידן"], ["רועי", "רון"], ["טום", "רוי"]],
-  // חמישי (יום 8 - סיום באזור 13:00) 
-  [["שלו"], ["רועי"], [UNMANNED], [UNMANNED], [UNMANNED, UNMANNED], [UNMANNED, UNMANNED]]
+  [[UNMANNED], [UNMANNED], [UNMANNED], ["שלו"], ["סולד", "רון"], ["טום", "רוי"]],
+  [["עידן"], ["רון"], ["שלו"], ["רוי"], ["סולד", "רון"], ["שלו", "עידן"]],
+  [["טום"], ["רוי"], ["רון"], ["סולד"], ["טום", "רוי"], ["שלו", "עידן"]],
+  [["סולד"], ["רון"], ["רוי"], ["עידן"], ["סולד", "רון"], ["טום", "רוי"]],
+  [["שלו"], ["עידן"], ["רון"], ["טום"], ["שלו", "עידן"], ["סולד", "רון"]],
+  [["טום"], ["שלו"], ["עידן"], ["סולד"], ["טום", "רוי"], ["שלו", "עידן"]],
+  [["סולד"], ["טום"], ["רוי"], ["עידן"], ["סולד", "רון"], ["טום", "רוי"]],
+  [["שלו"], ["סולד"], [UNMANNED], [UNMANNED], [UNMANNED, UNMANNED], [UNMANNED, UNMANNED]]
 ];
 
 export default function ScheduleBoard() {
@@ -49,19 +58,36 @@ export default function ScheduleBoard() {
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    // מפתח חדש V5 לטעינת השיבוץ המעודכן עם ההחרגה של שלו
-    const savedSchedule = localStorage.getItem("guardScheduleDataDarkV5");
-    if (savedSchedule) {
-      setSchedule(JSON.parse(savedSchedule));
-    }
-    setIsLoaded(true);
+    // מאזין בזמן אמת למסד הנתונים בפיירבייס!
+    const docRef = doc(db, "schedules", "main_schedule");
+    
+    const unsubscribe = onSnapshot(docRef, (docSnap) => {
+      if (docSnap.exists()) {
+        // אם יש נתונים בענן, נציג אותם
+        setSchedule(docSnap.data().scheduleData);
+      } else {
+        // אם זה פעם ראשונה שפותחים את האתר אי פעם, נשמור את הסידור ההתחלתי לענן
+        setDoc(docRef, { scheduleData: initialSchedule });
+      }
+      setIsLoaded(true);
+    });
+
+    // כשהאתר נסגר, אנחנו מפסיקים להאזין
+    return () => unsubscribe();
   }, []);
 
-  const updateGuard = (dayIndex: number, shiftIndex: number, slotIndex: number, newName: string) => {
+  const updateGuard = async (dayIndex: number, shiftIndex: number, slotIndex: number, newName: string) => {
+    // עדכון מיידי במסך שלך
     const newSchedule = JSON.parse(JSON.stringify(schedule));
     newSchedule[dayIndex][shiftIndex][slotIndex] = newName;
     setSchedule(newSchedule);
-    localStorage.setItem("guardScheduleDataDarkV5", JSON.stringify(newSchedule));
+    
+    // שליחת העדכון לענן כדי שכולם יראו!
+    try {
+      await setDoc(doc(db, "schedules", "main_schedule"), { scheduleData: newSchedule });
+    } catch (error) {
+      console.error("Error saving to database:", error);
+    }
   };
 
   const getShiftCounts = () => {
@@ -80,14 +106,18 @@ export default function ScheduleBoard() {
     return Object.entries(counts).sort((a, b) => b[1] - a[1]);
   };
 
-  if (!isLoaded) return null;
+  if (!isLoaded) return (
+    <div className="min-h-screen bg-gray-950 flex items-center justify-center text-white text-2xl">
+      טוען נתונים מהענן...
+    </div>
+  );
 
   return (
     <div className="p-4 bg-gray-950 min-h-screen text-right text-gray-100 font-sans" dir="rtl">
       <div className="max-w-7xl mx-auto">
         <h1 className="text-4xl font-extrabold text-center mb-8 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">
           לוז שמירות
-       </h1>
+        </h1>
         
         <div className="overflow-x-auto shadow-2xl rounded-xl border border-gray-800 mb-12">
           <table className="min-w-full bg-gray-900 text-sm text-center border-collapse">
