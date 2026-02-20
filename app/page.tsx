@@ -1,11 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-// ייבוא הכלים של פיירבייס
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, setDoc, onSnapshot } from "firebase/firestore";
 
-// --- החלף את כל הבלוק הזה עם ה-firebaseConfig שקיבלת מפיירבייס! ---
+// --- אל תשכח להדביק כאן את ה-firebaseConfig שלך! ---
 const firebaseConfig = {
   apiKey: "AIzaSyCUzQmyZv8Y_8JRjK5iV80T68g5fzJBTOk",
   authDomain: "guard-schedule.firebaseapp.com",
@@ -15,11 +14,9 @@ const firebaseConfig = {
   appId: "1:538986053667:web:7279603a60afba6ac1b196"
 };
 
-// הפעלת פיירבייס
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// הגדרות המערכת שלנו
 const UNMANNED = "לא מאויישת";
 const GUARDS = ["סולד", "רון", "שלו", "עידן", "טום", "רוי", UNMANNED];
 const DAYS = ["חמישי", "שישי", "שבת", "ראשון", "שני", "שלישי", "רביעי", "חמישי (סיום)"];
@@ -58,33 +55,30 @@ export default function ScheduleBoard() {
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    // מאזין בזמן אמת למסד הנתונים בפיירבייס!
-    const docRef = doc(db, "schedules", "main_schedule");
+    const docRef = doc(db, "schedules", "main_schedule_v2");
     
     const unsubscribe = onSnapshot(docRef, (docSnap) => {
       if (docSnap.exists()) {
-        // אם יש נתונים בענן, נציג אותם
-        setSchedule(docSnap.data().scheduleData);
+        // כאן אנחנו הופכים את הטקסט שחזר מפיירבייס בחזרה למערך
+        setSchedule(JSON.parse(docSnap.data().scheduleData));
       } else {
-        // אם זה פעם ראשונה שפותחים את האתר אי פעם, נשמור את הסידור ההתחלתי לענן
-        setDoc(docRef, { scheduleData: initialSchedule });
+        // כאן אנחנו שומרים בפיירבייס בפעם הראשונה כטקסט!
+        setDoc(docRef, { scheduleData: JSON.stringify(initialSchedule) });
       }
       setIsLoaded(true);
     });
 
-    // כשהאתר נסגר, אנחנו מפסיקים להאזין
     return () => unsubscribe();
   }, []);
 
   const updateGuard = async (dayIndex: number, shiftIndex: number, slotIndex: number, newName: string) => {
-    // עדכון מיידי במסך שלך
     const newSchedule = JSON.parse(JSON.stringify(schedule));
     newSchedule[dayIndex][shiftIndex][slotIndex] = newName;
     setSchedule(newSchedule);
     
-    // שליחת העדכון לענן כדי שכולם יראו!
     try {
-      await setDoc(doc(db, "schedules", "main_schedule"), { scheduleData: newSchedule });
+      // גם כאן, אנחנו שולחים את המערך כטקסט כדי שפיירבייס לא יכעס
+      await setDoc(doc(db, "schedules", "main_schedule_v2"), { scheduleData: JSON.stringify(newSchedule) });
     } catch (error) {
       console.error("Error saving to database:", error);
     }
@@ -107,8 +101,8 @@ export default function ScheduleBoard() {
   };
 
   if (!isLoaded) return (
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center text-white text-2xl">
-      טוען נתונים מהענן...
+    <div className="min-h-screen bg-gray-950 flex items-center justify-center text-white text-2xl font-bold">
+      טוען נתונים...
     </div>
   );
 
