@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, setDoc, onSnapshot } from "firebase/firestore";
 
-// --- אל תשכח להדביק כאן את ה-firebaseConfig שלך! ---
+// ההגדרות שלך מפיירבייס - מוכנות לעבודה!
 const firebaseConfig = {
   apiKey: "AIzaSyCUzQmyZv8Y_8JRjK5iV80T68g5fzJBTOk",
   authDomain: "guard-schedule.firebaseapp.com",
@@ -18,6 +18,7 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 const UNMANNED = "לא מאויישת";
+// שינינו את רועי לסולד
 const GUARDS = ["סולד", "רון", "שלו", "עידן", "טום", "רוי", UNMANNED];
 const DAYS = ["חמישי", "שישי", "שבת", "ראשון", "שני", "שלישי", "רביעי", "חמישי (סיום)"];
 const SHIFTS = [
@@ -55,14 +56,13 @@ export default function ScheduleBoard() {
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    const docRef = doc(db, "schedules", "main_schedule_v2");
+    // גרסה 3 כדי לאפס את הנתונים לכולם עם השם החדש
+    const docRef = doc(db, "schedules", "main_schedule_v3");
     
     const unsubscribe = onSnapshot(docRef, (docSnap) => {
       if (docSnap.exists()) {
-        // כאן אנחנו הופכים את הטקסט שחזר מפיירבייס בחזרה למערך
         setSchedule(JSON.parse(docSnap.data().scheduleData));
       } else {
-        // כאן אנחנו שומרים בפיירבייס בפעם הראשונה כטקסט!
         setDoc(docRef, { scheduleData: JSON.stringify(initialSchedule) });
       }
       setIsLoaded(true);
@@ -77,8 +77,7 @@ export default function ScheduleBoard() {
     setSchedule(newSchedule);
     
     try {
-      // גם כאן, אנחנו שולחים את המערך כטקסט כדי שפיירבייס לא יכעס
-      await setDoc(doc(db, "schedules", "main_schedule_v2"), { scheduleData: JSON.stringify(newSchedule) });
+      await setDoc(doc(db, "schedules", "main_schedule_v3"), { scheduleData: JSON.stringify(newSchedule) });
     } catch (error) {
       console.error("Error saving to database:", error);
     }
